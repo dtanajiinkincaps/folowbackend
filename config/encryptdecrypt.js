@@ -18,8 +18,8 @@ function encryptDataStringSalt(data,iv)
 }
 
 function decryptData(data,iv) {
-	console.log("encrypted data",data);
-	console.log("salt_string",iv);
+	// console.log("encrypted data",data);
+	// console.log("salt_string",iv);z
 	iv = Buffer.from(iv||"c95f77651f815f3d70f3281065c5e5c5", 'hex');
 	let encryptedText = Buffer.from(data, 'hex');
 	let decipher = crypto.createDecipheriv(process.env.algorithm||"aes-256-cbc", Buffer.from(process.env.encryption_key||"edb586b0cf329ed30ace437a1d47e881"), iv);

@@ -71,7 +71,7 @@ postsdb.getAllPosts=async(data)=>{
         if(data.post_utc_date!="")
             condition+=" and TO_CHAR(post.post_utc_timing,'YYYY/MM/DD')= '"+data.post_utc_date+"'";
         
-        const query="select u.person_name as name,u.username,u.profile_image,post.post_id,post.description,post.location,post.post_type, TO_CHAR(post.post_timing,'DD/MM/YYYY HH24:MI:ss') indian_time, TO_CHAR(post.post_utc_timing,'DD/MM/YYYY HH24:MI:ss') utc_time,post.media,post.comments,post.likes total_likes,post.comments total_comments,(select count(*) from post_likes where post_id=post.post_id and like_type='post' and auth_token='"+data.auth_token+"') liked_by_you,COALESCE(hashtags,'') hashtags,COALESCE(mentions,'') mentions from posts post,users u where post.auth_token=u.auth_token and "+condition+" order by post.post_id DESC ";
+        const query="select u.person_name as name,u.username,u.profile_image,post.post_id,post.description,post.location,post.post_type, TO_CHAR(post.post_timing,'DD/MM/YYYY HH24:MI:ss') indian_time, TO_CHAR(post.post_utc_timing,'DD/MM/YYYY HH24:MI:ss') utc_time,post.media,post.comments,post.likes total_likes,post.comments total_comments,(select count(*) from post_likes where post_id=post.post_id and like_type='post' and auth_token='"+data.auth_token+"') liked_by_you,COALESCE(hashtags,'') hashtags,COALESCE(mentions,'') mentions, (post.auth_token='"+data.auth_token+"') as is_self from posts post,users u where post.auth_token=u.auth_token and "+condition+" order by post.post_id DESC  ";
     
         const response=await db.fetchRecords(query);
 
@@ -115,7 +115,7 @@ postsdb.getAllPosts=async(data)=>{
 
             for(let j=0;j<media.length;j++)
             {
-                const mediaLikes="select likes.post_id,likes.like_type post_type,likes.post_name,u.username,u.person_name,u.profile_image,(select count(*) from post_likes where post_id=likes.post_id and like_type=likes.like_type and post_name=likes.post_name and auth_token='"+data.auth_token+"') liked_by_you from post_likes likes,users u,posts post where likes.post_id=post.post_id and likes.auth_token=u.auth_token and likes.like_type='"+media[j].type+"' and likes.post_name='"+media[j].name+"' and likes.post_id="+postDetails[i].post_id;
+                const mediaLikes="select likes.post_id,likes.like_type post_type,likes.post_name,u.username,u.person_name,u.profile_image,(select count(*) from post_likes where post_id=likes.post_id and like_type=likes.like_type and post_name=likes.post_name and auth_token='"+data.auth_token+"') liked_by_you from post_likes likes,users u,posts post where likes.post_id=post.post_id and likes.auth_token=u.auth_token and likes.like_type='"+media[j].type+"' and likes.post_name='"+media[j].name+"' and likes.post_id="+postDetails[i].post_id+";";
 
                 
                 
@@ -135,7 +135,7 @@ postsdb.getAllPosts=async(data)=>{
                 else
                     response.msg[i].media[j].liked_by_you="0";
 
-                const mediaComment="select comments.post_id,comments.comment_type post_type,comments.post_name,u.username,u.person_name,u.profile_image from post_comments comments,users u,posts post where comments.post_id=post.post_id and comments.auth_token=u.auth_token and comments.comment_type='"+media[j].type+"' and comments.post_name='"+media[j].name+"' and comments.post_id="+postDetails[i].post_id;
+                const mediaComment="select comments.post_id,comments.comment_type post_type,comments.post_name,u.username,u.person_name,u.profile_image from post_comments comments,users u,posts post where comments.post_id=post.post_id and comments.auth_token=u.auth_token and comments.comment_type='"+media[j].type+"' and comments.post_name='"+media[j].name+"' and comments.post_id="+postDetails[i].post_id +";";
                 
                 const mediaCommentResult=await db.fetchRecords(mediaComment);
 

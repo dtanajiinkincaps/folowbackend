@@ -778,7 +778,7 @@ userdb.profileSearch=async(data)=>{
         if(condition=="")
             return {status:false,error:["Search parameter cannot be empty."],response:{}};
             
-        const profileQuery="select person_name as name, username,email_id,profile_image from users where 1=1 "+condition;
+        const profileQuery="select person_name as name, username,email_id,profile_image,(auth_token='"+data.auth_token+"') as is_self from users where 1=1 "+condition;
         
         const profileResult=await db.fetchRecords(profileQuery);
 
