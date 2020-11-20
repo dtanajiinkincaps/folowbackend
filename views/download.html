@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Facebook Login JavaScript Example</title>
+<meta charset="UTF-8">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+	var settings = {
+  "url": "localhost:3000/admin/download_users",
+  "method": "POST",
+  "timeout": 0,
+  "headers": {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX3R5cGUiOiJhZG1pbiIsInVzZXJuYW1lIjoiYWRtaW4iLCJwYXNzd29yZCI6Ikd5cHJvY0AxMjMiLCJpYXQiOjE2MDQ2NTU0NzF9.S5LCU3fwBE22z3hO93P37lKF4xeDiKM5atsmIEhPtOQ"
+  },
+};
+
+$.ajax(settings).done(function (response) {
+  console.log(response);
+});
+</script>
+</head>
+<body>
+</body>
+</html>

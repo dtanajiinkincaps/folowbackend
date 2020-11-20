@@ -1,0 +1,36 @@
+{
+  "name": "folow-project-restructure",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "sujeet",
+  "license": "ISC",
+  "dependencies": {
+    "@mysql/xdevapi": "^8.0.21",
+    "@sendgrid/mail": "^7.2.0",
+    "aws-sdk": "^2.693.0",
+    "axios": "^0.21.0",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "moment-timezone": "^0.5.31",
+    "mongoose": "^5.9.18",
+    "multer": "^1.4.2",
+    "multer-s3": "^2.9.0",
+    "mysql": "^2.18.1",
+    "mysql2": "^2.1.0",
+    "node-datetime": "^2.1.2",
+    "nodemailer": "^6.4.8",
+    "nodemon": "^2.0.4",
+    "pg": "^8.3.0",
+    "random-number": "0.0.9",
+    "randomstring": "^1.1.5",
+    "socket.io": "^2.3.0"
+  }
+}
