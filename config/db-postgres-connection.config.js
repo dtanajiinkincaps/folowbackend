@@ -1,12 +1,5 @@
 require('dotenv').config();
 const {Pool} = require("pg");
-// const pool=new Pool({
-//     user: 'postgres',
-//     host: 'localhost',
-//     database: 'social',
-//     password: 'root',
-//     port: 5432
-//   });
 const pool=new Pool({
     user: process.env.db_username,
     host: process.env.db_host,
@@ -17,6 +10,7 @@ const pool=new Pool({
         rejectUnauthorized: false,
       },
   });
+
 const db={};
 db.fetchRecords=async(query)=>{
     console.log("select query",query);
@@ -24,7 +18,7 @@ db.fetchRecords=async(query)=>{
     try
     {    
         const response=await client.query(query);
-        
+        // console.log("Query result::",response.rows);
         client.release();
         return {status:true,msg:response.rows};
     }
@@ -132,7 +126,7 @@ db.insertRecords=async(data,tablename,isSQL=false)=>{
 
             // columnName[i]=client.escapeIdentifier(columnName[i]);
 
-            if(typeof(columnValue[i])=="string" && columnValue[i].indexOf("nextval")==-1)
+            if(typeof(columnValue[i])=="string" && columnValue[i].indexOf("nextval")==-1 && columnValue[i].indexOf("pgp_sym_encrypt")==-1)
                 columnValue[i]=client.escapeLiteral(columnValue[i]);
         }
 
@@ -152,9 +146,37 @@ db.insertRecords=async(data,tablename,isSQL=false)=>{
 
         const response=await client.query(query);
 
+        console.log("Insert response",response);
+
         client.release();
 
         return {status:true,msg:"Record inserted successfully."};
+    }
+    catch (error)
+    {
+        client.release();
+        console.log("Exception in insert record",error);
+        return {status:false,error:["error"+error],response:{}};
+    }
+}
+db.procedure=async(data,procedureName)=>
+{
+    const client=await pool.connect();
+    try 
+    {
+        //console.log(data);
+        
+        const query="call "+procedureName+"("+data.join(",")+");";
+
+        console.log("Procedure query:::",query);
+
+        const response=await client.query(query);
+
+        client.release();
+
+        return {
+                status:true,msg:"Procedure executed successfully."//,response
+            };
     }
     catch (error)
     {
@@ -167,5 +189,6 @@ module.exports={
     fetchRecords:db.fetchRecords,
     insertRecords:db.insertRecords,
     deleteRecords:db.deleteRecords,
-    updateRecords:db.updateRecords
+    updateRecords:db.updateRecords,
+    procedureCall:db.procedure
 };

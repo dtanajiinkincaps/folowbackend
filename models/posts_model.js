@@ -6,7 +6,7 @@ const user = require('../controllers/user.ctrl');
 
 const postsdb={};
 
-postsdb.addNewPost=async(data)=>{
+postsdb.addNewPost=async(data,otherObj)=>{
     try
     {    
         console.log("Add new post object:::",data);
@@ -23,6 +23,23 @@ postsdb.addNewPost=async(data)=>{
 
         if(!response.status)
             return response;
+
+        console.log("Other object ::: ",otherObj);
+
+        if(otherObj.is_hashtags)
+        {
+            const hashTags=await db.procedureCall(["'"+otherObj.hashtags+"'","'"+utc_time+"'"],'pro_addorupdate_hashtag');
+            
+            if(!hashTags.status)
+                return hashTags;
+        }
+        if(otherObj.is_mentions)
+        {
+            const mentionTags=await db.procedureCall(["'"+otherObj.mentions+"'","'"+utc_time+"'"],'pro_addorupdate_mentions');
+            
+            if(!mentionTags.status)
+                return mentionTags;
+        }
         
         const latestPostQuery="select u.person_name as name,u.username,u.profile_image,post.post_id,post.description,post.location,post.post_type, TO_CHAR(post.post_timing,'DD/MM/YYYY HH24:MI:ss am') indian_time, TO_CHAR(post.post_utc_timing,'DD/MM/YYYY HH24:MI:ss am') utc_time,post.media,post.comments,post.likes total_likes,post.comments total_comments,COALESCE(hashtags,'') hashtags,COALESCE(mentions,'') mentions from posts post,users u where post.auth_token=u.auth_token and post.post_id=(select COALESCE(max(post_id),0) post_id from posts where auth_token='"+data.auth_token+"')";
         let postDetails=await db.fetchRecords(latestPostQuery);
@@ -70,6 +87,8 @@ postsdb.getAllPosts=async(data)=>{
             condition+=" and TO_CHAR(post.post_timing,'YYYY/MM/DD')='"+data.post_date+"'";
         if(data.post_utc_date!="")
             condition+=" and TO_CHAR(post.post_utc_timing,'YYYY/MM/DD')= '"+data.post_utc_date+"'";
+        if(data.hashtag!="")
+            condition+=" and lower(hashtags) like '%"+data.hashtag.toLowerCase()+"%'"
         
         const query="select u.person_name as name,u.username,u.profile_image,post.post_id,post.description,post.location,post.post_type, TO_CHAR(post.post_timing,'DD/MM/YYYY HH24:MI:ss') indian_time, TO_CHAR(post.post_utc_timing,'DD/MM/YYYY HH24:MI:ss') utc_time,post.media,post.comments,post.likes total_likes,post.comments total_comments,(select count(*) from post_likes where post_id=post.post_id and like_type='post' and auth_token='"+data.auth_token+"') liked_by_you,COALESCE(hashtags,'') hashtags,COALESCE(mentions,'') mentions, (post.auth_token='"+data.auth_token+"') as is_self from posts post,users u where post.auth_token=u.auth_token and "+condition+" order by post.post_id DESC  ";
     

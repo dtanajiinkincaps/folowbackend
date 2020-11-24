@@ -686,4 +686,85 @@ user.social_login=async(request,response)=>{
     response.status(200).json({status:false,error:["Problem in fetching profile details."],response:{}});
   }
 }
+user.hashtags_search=async(request,response)=>{
+  try
+  {
+    const data=request.body;
+    
+    data.auth_token=data.auth_token||"";
+    data.search=data.search||"";
+    
+    if(data.auth_token!="")
+    {
+      const verifyUser=await userModel.verifyUser(data.auth_token);
+
+      if(!verifyUser.status)
+      {
+        console.log("user follow validation error ",verifyUser);
+        response.status(200).json(verifyUser);
+        return;
+      }
+    }
+
+    if(data.search=="")
+    {
+      console.log("Filter paramters empty error.")
+      response.status(200).json({status:false,error:["Please provide username or name or email id or mobile number of user."],response:{}});
+    }
+    if(data.search.indexOf("#")>0 || data.search.indexOf("#")==-1)
+      data.search="#"+data.search;
+    const hashtagSearchResult=await userModel.hashTagsSearch(data);
+
+    console.log("hashtag search result",hashtagSearchResult);
+
+    response.status(200).json(hashtagSearchResult);
+  }
+  catch (error)
+  {
+    console.log("Exception in hashtagSearch function::",error);
+    return {status:false,error:["Problem in fetching hashtag details."],response:{}}
+  }
+}
+user.hashtag_profile=async(request,response)=>{
+  
+  try
+  {
+    const data=request.body;
+    
+    data.auth_token=data.auth_token||"";
+    data.search=data.search||"";
+    
+    if(data.auth_token!="")
+    {
+      const verifyUser=await userModel.verifyUser(data.auth_token);
+
+      if(!verifyUser.status)
+      {
+        console.log("user follow validation error ",verifyUser);
+        response.status(200).json(verifyUser);
+        return;
+      }
+    }
+
+    if(data.search=="")
+    {
+      console.log("Filter paramters empty error.")
+      response.status(200).json({status:false,error:["Please provide username or name or email id or mobile number of user."],response:{}});
+    }
+    if(data.search.indexOf("#")>0 || data.search.indexOf("#")==-1)
+      data.search="#"+data.search;
+
+    const hashtagSearchResult=await userModel.hashTagProfile(data);
+
+    console.log("hashtag search result",hashtagSearchResult);
+
+    response.status(200).json(hashtagSearchResult);
+  }
+  catch (error)
+  {
+    console.log("Exception in hashtagSearch function::",error);
+    return {status:false,error:["Problem in fetching hashtag details."],response:{}}
+  }
+
+}
 module.exports=user;

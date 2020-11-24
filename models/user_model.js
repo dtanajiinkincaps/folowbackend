@@ -892,4 +892,69 @@ userdb.social_login=async(data)=>{
         return {status:false,error:["Problem in login using social account"],response:{}};
     }
 }
+userdb.hashTagsSearch=async(data)=>{
+    try 
+    {
+        let condition="";
+        
+        if(data.search!="")
+        {
+            condition+=" and lower(hashtag) like '"+data.search.toLowerCase()+"%'";
+        }
+        
+        if(condition=="")
+            return {status:false,error:["Search parameter cannot be empty."],response:{}};
+
+        const query="select hashtag,SUM(no_of_hashtag) no_of_hashtags FROM hashtags where 1=1 "+condition+" GROUP BY hashtag order by no_of_hashtags DESC;";
+
+        const hashTagData=await db.fetchRecords(query);
+    
+        if(!hashTagData.status)
+            return hashTagData;
+
+        if(hashTagData.msg.length==0)
+            return {status:false,error:["Hashtags not found."],response:{}};
+
+        return {status:true,msg:"Hashtags fetched successfully.",response:{hashtags:hashTagData.msg}};
+
+    } catch (error) {
+        return {status:false,error:["Problem in fetching hashtags"],response:{}};
+    }
+}
+userdb.hashTagProfile=async(data)=>{
+    try 
+    {
+        let condition="";
+        
+        if(data.search!="")
+        {
+            condition+=" and lower(hashtags) like '%"+data.search.toLowerCase()+"%'";
+        }
+        
+        if(condition=="")
+            return {status:false,error:["Search parameter cannot be empty."],response:{}};
+
+        const query="select '"+data.search+"' AS hashtag_name,COALESCE(array_to_json(array_agg(posts)), '[]') AS hashtag_posts, COUNT(posts) AS no_of_posts FROM (select u.person_name as name,u.username,u.profile_image,post.post_id,post.description,post.location,post.post_type, TO_CHAR(post.post_timing,'DD/MM/YYYY HH24:MI:ss') indian_time, TO_CHAR(post.post_utc_timing,'DD/MM/YYYY HH24:MI:ss') utc_time,post.media,post.comments,post.likes total_likes,post.comments total_comments,(select count(*) from post_likes where post_id=post.post_id and like_type='post' and auth_token='"+data.auth_token+"') liked_by_you,COALESCE(hashtags,'') hashtags,COALESCE(mentions,'') mentions, (post.auth_token='"+data.auth_token+"') as is_self from posts post,users u where post.auth_token=u.auth_token and 1=1 "+condition+" order by post.post_id DESC ) posts";
+
+        let hashTagData=await db.fetchRecords(query);
+    
+        if(!hashTagData.status)
+            return hashTagData;
+
+        if(hashTagData.msg.length==0)
+            return {status:false,error:["Hashtags not found."],response:{}};
+
+        hashTagData=hashTagData.msg[0];
+
+        for(let i=0;i<hashTagData.hashtag_posts.length;i++){
+            hashTagData.hashtag_posts[i].username=encrypt.decrypt(hashTagData.hashtag_posts[i].username,process.env.salt_string);
+        }
+
+        return {status:true,msg:"Hashtag Profile fetched successfully.",response:{hashtag_profile:hashTagData}};
+
+    } catch (error) {
+        console.log("Exception in hashTagProfile function::",error);
+        return {status:false,error:["Problem in fetching hash tag profile details."],response:{}}
+    }
+}
 module.exports=userdb;

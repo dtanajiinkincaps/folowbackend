@@ -112,6 +112,8 @@ module.exports = (app) => {
     app.post('/app/get_all_post',upload, postCtrl.get_all_post);
     app.post('/app/user_profile_post',upload, postCtrl.fetch_profile_post);
     app.post('/app/profile_search',upload, userCtrl.profile_search);
+    app.post('/app/hashtags_search',upload, userCtrl.hashtags_search);
+    app.post('/app/hashtag_profile',upload, userCtrl.hashtag_profile);
     
     
     // app.get('/app/get_all_media', postCtrl.get_all_media);
