@@ -5,6 +5,7 @@ const userModel=require("../models/user_model");
 const dateTime=require("../config/date");
 const send_email=require("../config/send-email.config");
 const encrypt=require("../config/encryptdecrypt");
+const postModel=require("../models/posts_model");
 
 const user={};
 
@@ -483,6 +484,18 @@ user.user_profiling=async(request,response)=>{
       const data=request.body;
       data.auth_token=data.auth_token||"";
       data.username=data.username||"";
+      data.profile_type=data.profile_type||"people";
+      data.hashtag=data.hashtag||"";
+
+
+      data.name="";
+      data.email="";
+      data.description="";
+      data.location="";
+      data.post_date="";
+      data.post_utc_date="";
+      data.current_user=false;
+      data.following=false;
 
       console.log("User profile data ",data);
 
@@ -493,11 +506,37 @@ user.user_profiling=async(request,response)=>{
         return;
       }
 
-      const profileResponse=await userModel.userProfile(data);
+      if(data.profile_type=="people" || data.profile_type=="")
+      {
+        const profileResponse=await userModel.userProfile(data);
+        
+        console.log("User profile response::",profileResponse);
+        
+        response.status(200).json(profileResponse);
+      }
+      else if(data.profile_type=="hashtag")
+      {
+        data.username="";
+        if(data.hashtag=="")
+        {
+          response.json({status:false,error:["Hashtag cannot be empty for hashtag profile."],response:{}});
+          return;
+        }
+        if(data.hashtag.indexOf("#")>0 || data.hashtag.indexOf("#")==-1)
+            data.hashtag="#"+data.hashtag;
+            
+        const hashtagProfileResult=await postModel.getAllPosts(data);
+        
+        console.log("hashtag profile result",hashtagProfileResult);
+        
+        response.status(200).json(hashtagProfileResult);
 
-      console.log("User profile response::",profileResponse);
-
-      response.status(200).json(profileResponse);
+      }
+      else
+      {
+        response.json({status:false,error:["Invalid profile type"],response:{}});
+      }
+      
   }
   catch (error)
   {
@@ -628,6 +667,7 @@ user.profile_search=async(request,response)=>{
     
     data.auth_token=data.auth_token||"";
     data.search=data.search||"";
+    data.search_type=data.search_type||"people"
     
     if(data.auth_token!="")
     {
@@ -647,11 +687,27 @@ user.profile_search=async(request,response)=>{
       response.status(200).json({status:false,error:["Please provide username or name or email id or mobile number of user."],response:{}});
     }
 
-    const profileSearchResult=await userModel.profileSearch(data);
-
-    console.log("Profile search result",profileSearchResult);
-
-    response.status(200).json(profileSearchResult);
+    if(data.search_type=="people" || data.search_type=="")
+    {
+      const profileSearchResult=await userModel.profileSearch(data);
+      console.log("Profile search result",profileSearchResult);
+      response.status(200).json(profileSearchResult);
+    }
+    else if(data.search_type=="hashtag")
+    {
+      if(data.search.indexOf("#")>0 || data.search.indexOf("#")==-1)
+        data.search="#"+data.search;
+      
+      const hashtagSearchResult=await userModel.hashTagsSearch(data);
+      
+      console.log("hashtag search result",hashtagSearchResult);
+      
+      response.status(200).json(hashtagSearchResult);
+    }
+    else
+    {
+      response.json({status:false,error:["Invalid search type"],response:{}});
+    }
   }
   catch (error)
   {

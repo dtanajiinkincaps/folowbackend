@@ -3,6 +3,7 @@ const postCtrl = require('../controllers/post.ctrl');
 const settingCtrl = require('../controllers/setting.ctrl');
 const storyCtrl = require('../controllers/story.ctrl');
 const upload=require("../config/upload-file.config");
+
 var path = require("path");
 
 
@@ -13,7 +14,7 @@ const jwt = require('../config/jwt.config');
 const { request } = require('express');
 
 
-module.exports = (app) => {
+module.exports = (app,passport) => {
 	app.post('/',(request,response)=>{
 		response.sendFile("../views/login.html");
 	});
@@ -51,7 +52,19 @@ module.exports = (app) => {
         const data=request.query||{};
         console.log("Authorization token :: ",data);
         response.json(data);
-    })
+    });
+
+    app.get("/app/twitter/login",passport.authenticate("twitter"));
+
+    app.get("/app/twitter/return",passport.authenticate('twitter',{
+        failureRedirect:"/app/twitter/error"
+    }),(request,response)=>{
+        response.json({status:true,msg:"Twitter login successfully done.",response:{user:request.user}});
+    });
+    
+    app.get("/app/twitter/error",(request,response)=>{
+        response.json({status:false,error:["Login failed."],response:{}});
+    });
     ////////// userCtrl
     app.post('/app/register',upload, userCtrl.registerUser);
     app.post('/app/login', upload,userCtrl.loginUser);

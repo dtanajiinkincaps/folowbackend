@@ -89,8 +89,16 @@ postsdb.getAllPosts=async(data)=>{
             condition+=" and TO_CHAR(post.post_utc_timing,'YYYY/MM/DD')= '"+data.post_utc_date+"'";
         if(data.hashtag!="")
             condition+=" and lower(hashtags) like '%"+data.hashtag.toLowerCase()+"%'"
+
+        if(data.following)
+        {
+            if(data.auth_token=="")
+                return {status:false,error:["Auth token cannot be empty when you fetching followers posts."],response:{}};
+
+            condition+=" and post.auth_token in (select following_auth_token from followers where follower_auth_token='"+data.auth_token+"')"
+        }
         
-        const query="select u.person_name as name,u.username,u.profile_image,post.post_id,post.description,post.location,post.post_type, TO_CHAR(post.post_timing,'DD/MM/YYYY HH24:MI:ss') indian_time, TO_CHAR(post.post_utc_timing,'DD/MM/YYYY HH24:MI:ss') utc_time,post.media,post.comments,post.likes total_likes,post.comments total_comments,(select count(*) from post_likes where post_id=post.post_id and like_type='post' and auth_token='"+data.auth_token+"') liked_by_you,COALESCE(hashtags,'') hashtags,COALESCE(mentions,'') mentions, (post.auth_token='"+data.auth_token+"') as is_self from posts post,users u where post.auth_token=u.auth_token and "+condition+" order by post.post_id DESC  ";
+        const query="SELECT u.person_name AS name,u.username ,u.profile_image ,post.post_id ,post.description ,post.location ,post.post_type ,TO_CHAR(post.post_timing, 'DD/MM/YYYY HH24:MI:ss') indian_time ,TO_CHAR(post.post_utc_timing, 'DD/MM/YYYY HH24:MI:ss') utc_time ,( SELECT COALESCE(array_to_json(array_agg(post_media)), '[]') FROM ( SELECT post_media.media ->> 'seq' AS seq ,post_media.media ->> 'name' AS name ,post_media.media ->> 'type' AS type ,post_media.media ->> 'location' AS location ,( select coalesce(array_to_json(array_agg(post_likes)),'[]') from ( SELECT u.username, u.person_name, u.profile_image FROM post_likes likes ,users u WHERE u.auth_token = likes.auth_token AND likes.post_id = post_media.post_id AND likes.like_type = post_media.media ->> 'type' AND likes.post_name = post_media.media ->> 'name' )post_likes ) liked_by ,( SELECT count(*) FROM post_likes likes ,users u WHERE u.auth_token = likes.auth_token AND likes.post_id = post_media.post_id AND likes.like_type = post_media.media ->> 'type' AND likes.post_name = post_media.media ->> 'name' ) total_likes ,( SELECT count(*) FROM post_likes likes ,users u WHERE u.auth_token = likes.auth_token AND likes.post_id = post_media.post_id AND likes.like_type = post_media.media ->> 'type' AND likes.post_name = post_media.media ->> 'name' AND likes.auth_token = '"+data.auth_token+"' ) liked_by_you ,( SELECT COALESCE(array_to_json(array_agg(post_comment)), '[]') FROM ( SELECT comments.comment_id ,u.username ,u.person_name AS name ,u.profile_image ,comments.comment FROM post_comments comments ,users u WHERE u.auth_token = comments.auth_token AND comments.post_id = post_media.post_id AND comments.comment_type = post_media.media ->> 'type' AND comments.post_name = post_media.media ->> 'name' ) post_comment ) commented_by ,( SELECT count(*) FROM post_comments comments ,users u WHERE u.auth_token = comments.auth_token AND comments.post_id = post_media.post_id AND comments.comment_type = post_media.media ->> 'type' AND comments.post_name = post_media.media ->> 'name' ) total_comments FROM ( SELECT post_id ,jsonb_array_elements(media) AS media FROM posts WHERE post_id = post.post_id ) post_media ) post_media ) media ,post.comments ,post.likes total_likes ,post.comments total_comments ,( SELECT COALESCE(array_to_json(array_agg(post_comment)), '[]') FROM ( SELECT comments.comment_id ,u.username ,u.person_name AS name ,u.profile_image ,comment FROM post_comments comments ,users u WHERE u.auth_token = comments.auth_token AND comments.comment_type = 'post' AND comments.post_id = post.post_id ) post_comment ) as commented_by, ( select coalesce(array_to_json(array_agg(post_likes)),'[]') from ( SELECT u.username, u.person_name, u.profile_image FROM post_likes likes, users u WHERE u.auth_token=likes.auth_token and likes.post_id = post.post_id AND likes.like_type = 'post' AND likes.auth_token = '"+data.auth_token+"' )post_likes ) as liked_by ,( SELECT count(*) FROM post_likes WHERE post_id = post.post_id AND like_type = 'post' AND auth_token = '"+data.auth_token+"' ) liked_by_you ,COALESCE(hashtags, '') hashtags ,COALESCE(mentions, '') mentions ,(post.auth_token = '"+data.auth_token+"') AS is_self FROM posts post ,users u WHERE post.auth_token = u.auth_token AND "+condition+" ORDER BY post.post_id DESC ";
     
         const response=await db.fetchRecords(query);
 
@@ -101,78 +109,111 @@ postsdb.getAllPosts=async(data)=>{
 
         for(let i=0;i<postDetails.length;i++)
         {
-            postDetails[i].username=encrypt.decrypt(postDetails[i].username,process.env.salt_string);
-            
-            const likeByQuery="select u.username,u.person_name,u.profile_image from post_likes likes,users u,posts post where likes.post_id=post.post_id and likes.auth_token=u.auth_token and likes.like_type='post' and likes.post_id="+postDetails[i].post_id+";"
+            response.msg[i].username=encrypt.decrypt(response.msg[i].username,process.env.salt_string);
 
-            let likeByResult=await db.fetchRecords(likeByQuery);
+            const media=postDetails[i].media;
+            const liked_by=postDetails[i].liked_by;
+            const commented_by=postDetails[i].commented_by;
 
-            if(!likeByResult.status)
-                return likeByResult;
-            likeByResult=likeByResult.msg;
-            // console.log(likeByResult);
-            for(let j=0;j<likeByResult.length;j++)
+            for(let j=0; j<media.length;j++)
             {
-                likeByResult[j].username=encrypt.decrypt(likeByResult[j].username,process.env.salt_string);
-            }
+                const liked_by=media[j].liked_by;
+                const commented_by=media[j].commented_by;
 
-            const commentByQuery="select u.username,u.person_name,u.profile_image from post_comments comment,users u,posts post where comment.post_id=post.post_id and comment.auth_token=u.auth_token and comment.comment_type='post' and comment.post_id="+postDetails[i].post_id+";"
-
-            let commentResult=await db.fetchRecords(commentByQuery);
-
-            if(!commentResult.status)
-                return commentResult;
-
-            commentResult=commentResult.msg;
-
-            for(let j=0;j<commentResult.length;j++)
-            {
-                commentResult[j].username=encrypt.decrypt(commentResult[j].username,process.env.salt_string);
-            }
-
-            let media=postDetails[i].media;
-
-            for(let j=0;j<media.length;j++)
-            {
-                const mediaLikes="select likes.post_id,likes.like_type post_type,likes.post_name,u.username,u.person_name,u.profile_image,(select count(*) from post_likes where post_id=likes.post_id and like_type=likes.like_type and post_name=likes.post_name and auth_token='"+data.auth_token+"') liked_by_you from post_likes likes,users u,posts post where likes.post_id=post.post_id and likes.auth_token=u.auth_token and likes.like_type='"+media[j].type+"' and likes.post_name='"+media[j].name+"' and likes.post_id="+postDetails[i].post_id+";";
-
-                
-                
-                const mediaLikesResult=await db.fetchRecords(mediaLikes);
-
-                if(!mediaLikesResult.status)
-                    return mediaLikesResult;
-                
-                for(let k=0;k<mediaLikesResult.msg.length;k++)
+                for(let k=0;k<liked_by.length;k++)
                 {
-                    mediaLikesResult.msg[k].username=encrypt.decrypt(mediaLikesResult.msg[k].username,process.env.salt_string);
+                    response.msg[i].media[j].liked_by[k].username=encrypt.decrypt(response.msg[i].media[j].liked_by[k].username,process.env.salt_string);
                 }
-                response.msg[i].media[j].total_likes=mediaLikesResult.msg.length;
-                response.msg[i].media[j].liked_by=mediaLikesResult.msg;
-                if(mediaLikesResult.msg.length>0)
-                    response.msg[i].media[j].liked_by_you=mediaLikesResult.msg[0].liked_by_you;
-                else
-                    response.msg[i].media[j].liked_by_you="0";
 
-                const mediaComment="select comments.post_id,comments.comment_type post_type,comments.post_name,u.username,u.person_name,u.profile_image from post_comments comments,users u,posts post where comments.post_id=post.post_id and comments.auth_token=u.auth_token and comments.comment_type='"+media[j].type+"' and comments.post_name='"+media[j].name+"' and comments.post_id="+postDetails[i].post_id +";";
-                
-                const mediaCommentResult=await db.fetchRecords(mediaComment);
-
-                if(!mediaCommentResult.status)
-                    return mediaCommentResult;
-                
-                for(let k=0;k<mediaCommentResult.msg.length;k++)
+                for(let k=0;k<commented_by.length;k++)
                 {
-                    mediaCommentResult.msg[k].username=encrypt.decrypt(mediaCommentResult.msg[k].username,process.env.salt_string);
+                    response.msg[i].media[j].commented_by[k].username=encrypt.decrypt(response.msg[i].media[j].commented_by[k].username,process.env.salt_string);
                 }
-                response.msg[i].media[j].total_comments=mediaCommentResult.msg.length;
-                response.msg[i].media[j].commented_by=mediaCommentResult.msg;
             }
-
-            response.msg[i].liked_by=likeByResult;
-            response.msg[i].commented_by=commentResult;
-
+            for(let j=0;j<liked_by.length;j++)
+            {
+                response.msg[i].liked_by[j].username=encrypt.decrypt(response.msg[i].liked_by[j].username,process.env.salt_string);
+            }
+            for(let j=0;j<commented_by.length;j++)
+            {
+                response.msg[i].commented_by[j].username=encrypt.decrypt(response.msg[i].commented_by[j].username,process.env.salt_string);
+            }
         }
+
+        // for(let i=0;i<postDetails.length;i++)
+        // {
+        //     postDetails[i].username=encrypt.decrypt(postDetails[i].username,process.env.salt_string);
+            
+        //     const likeByQuery="select u.username,u.person_name,u.profile_image from post_likes likes,users u,posts post where likes.post_id=post.post_id and likes.auth_token=u.auth_token and likes.like_type='post' and likes.post_id="+postDetails[i].post_id+";"
+
+        //     let likeByResult=await db.fetchRecords(likeByQuery);
+
+        //     if(!likeByResult.status)
+        //         return likeByResult;
+        //     likeByResult=likeByResult.msg;
+        //     // console.log(likeByResult);
+        //     for(let j=0;j<likeByResult.length;j++)
+        //     {
+        //         likeByResult[j].username=encrypt.decrypt(likeByResult[j].username,process.env.salt_string);
+        //     }
+
+        //     const commentByQuery="select u.username,u.person_name,u.profile_image from post_comments comment,users u,posts post where comment.post_id=post.post_id and comment.auth_token=u.auth_token and comment.comment_type='post' and comment.post_id="+postDetails[i].post_id+";"
+
+        //     let commentResult=await db.fetchRecords(commentByQuery);
+
+        //     if(!commentResult.status)
+        //         return commentResult;
+
+        //     commentResult=commentResult.msg;
+
+        //     for(let j=0;j<commentResult.length;j++)
+        //     {
+        //         commentResult[j].username=encrypt.decrypt(commentResult[j].username,process.env.salt_string);
+        //     }
+
+        //     let media=postDetails[i].media;
+
+        //     for(let j=0;j<media.length;j++)
+        //     {
+        //         const mediaLikes="select likes.post_id,likes.like_type post_type,likes.post_name,u.username,u.person_name,u.profile_image,(select count(*) from post_likes where post_id=likes.post_id and like_type=likes.like_type and post_name=likes.post_name and auth_token='"+data.auth_token+"') liked_by_you from post_likes likes,users u,posts post where likes.post_id=post.post_id and likes.auth_token=u.auth_token and likes.like_type='"+media[j].type+"' and likes.post_name='"+media[j].name+"' and likes.post_id="+postDetails[i].post_id+";";
+
+                
+                
+        //         const mediaLikesResult=await db.fetchRecords(mediaLikes);
+
+        //         if(!mediaLikesResult.status)
+        //             return mediaLikesResult;
+                
+        //         for(let k=0;k<mediaLikesResult.msg.length;k++)
+        //         {
+        //             mediaLikesResult.msg[k].username=encrypt.decrypt(mediaLikesResult.msg[k].username,process.env.salt_string);
+        //         }
+        //         response.msg[i].media[j].total_likes=mediaLikesResult.msg.length;
+        //         response.msg[i].media[j].liked_by=mediaLikesResult.msg;
+        //         if(mediaLikesResult.msg.length>0)
+        //             response.msg[i].media[j].liked_by_you=mediaLikesResult.msg[0].liked_by_you;
+        //         else
+        //             response.msg[i].media[j].liked_by_you="0";
+
+        //         const mediaComment="select comments.post_id,comments.comment_type post_type,comments.post_name,u.username,u.person_name,u.profile_image from post_comments comments,users u,posts post where comments.post_id=post.post_id and comments.auth_token=u.auth_token and comments.comment_type='"+media[j].type+"' and comments.post_name='"+media[j].name+"' and comments.post_id="+postDetails[i].post_id +";";
+                
+        //         const mediaCommentResult=await db.fetchRecords(mediaComment);
+
+        //         if(!mediaCommentResult.status)
+        //             return mediaCommentResult;
+                
+        //         for(let k=0;k<mediaCommentResult.msg.length;k++)
+        //         {
+        //             mediaCommentResult.msg[k].username=encrypt.decrypt(mediaCommentResult.msg[k].username,process.env.salt_string);
+        //         }
+        //         response.msg[i].media[j].total_comments=mediaCommentResult.msg.length;
+        //         response.msg[i].media[j].commented_by=mediaCommentResult.msg;
+        //     }
+
+        //     response.msg[i].liked_by=likeByResult;
+        //     response.msg[i].commented_by=commentResult;
+
+        // }
         if(response.msg.length==0)
             return {status:false,error:["No post found."],response:{post:[]}}
         

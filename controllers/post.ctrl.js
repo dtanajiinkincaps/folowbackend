@@ -286,7 +286,9 @@ posts.get_all_post=async(request,response)=>{
         data.location=data.location||"";
         data.post_date=data.post_date||"";
         data.post_utc_date=data.post_utc_date||"";
-        data.current_user=data.single_user||false
+        data.current_user=data.single_user||false;
+        data.hashtag=data.hashtag||"";
+        data.following=data.following||false;
 
         console.log("data generated::",data);
 
@@ -429,6 +431,50 @@ posts.comment_reply=async(request,response)=>{
     } catch (error) {
         console.log("Comment reply error",error);
         response.status(200).json({status:false,error:["Problem in replying comment. Please try after sometime."],response:{}});
+    }
+}
+posts.following_user_post=async(request,response)=>{
+    try
+    {
+        console.log("Inside following users post.");
+        const data=request.body;
+        console.log("get following user object from user",data);
+        data.auth_token=data.auth_token||"";
+        if(data.auth_token!="")
+        {
+            const verifyResponse=await userModel.verifyUser(data.auth_token);
+
+            if(!verifyResponse.status)
+            {
+                console.log("Get all post auth token error",verifyResponse);
+                response.status(200).json(verifyResponse);
+                return;
+            }
+        }
+
+        data.name=data.name||"";
+        data.email=data.email||"";
+        data.username=data.username||"";
+        data.auth_token=data.auth_token||"";
+        data.description=data.description||"";
+        data.location=data.location||"";
+        data.post_date=data.post_date||"";
+        data.post_utc_date=data.post_utc_date||"";
+        data.current_user=data.single_user||false
+        data.hashtag=data.hashtag||"";
+
+        console.log("data generated::",data);
+
+        const postResponse=await postModel.getAllPosts(data);
+
+        console.log("post response",postResponse);
+
+        response.status(200).json(postResponse);
+    }
+    catch (error)
+    {
+        console.log("Get all post error ",error);
+        response.status(200).json({status:false,error:["Problem in getting post records."],response:{}})
     }
 }
 module.exports=posts;

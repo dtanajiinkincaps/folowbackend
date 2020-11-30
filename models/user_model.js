@@ -926,15 +926,15 @@ userdb.hashTagProfile=async(data)=>{
     {
         let condition="";
         
-        if(data.search!="")
+        if(data.hashtag!="")
         {
-            condition+=" and lower(hashtags) like '%"+data.search.toLowerCase()+"%'";
+            condition+=" and lower(hashtags) like '%"+data.hashtag.toLowerCase()+"%'";
         }
         
         if(condition=="")
-            return {status:false,error:["Search parameter cannot be empty."],response:{}};
+            return {status:false,error:["hashtag parameter cannot be empty."],response:{}};
 
-        const query="select '"+data.search+"' AS hashtag_name,COALESCE(array_to_json(array_agg(posts)), '[]') AS hashtag_posts, COUNT(posts) AS no_of_posts FROM (select u.person_name as name,u.username,u.profile_image,post.post_id,post.description,post.location,post.post_type, TO_CHAR(post.post_timing,'DD/MM/YYYY HH24:MI:ss') indian_time, TO_CHAR(post.post_utc_timing,'DD/MM/YYYY HH24:MI:ss') utc_time,post.media,post.comments,post.likes total_likes,post.comments total_comments,(select count(*) from post_likes where post_id=post.post_id and like_type='post' and auth_token='"+data.auth_token+"') liked_by_you,COALESCE(hashtags,'') hashtags,COALESCE(mentions,'') mentions, (post.auth_token='"+data.auth_token+"') as is_self from posts post,users u where post.auth_token=u.auth_token and 1=1 "+condition+" order by post.post_id DESC ) posts";
+        const query="select '"+data.hashtag+"' AS hashtag_name,COALESCE(array_to_json(array_agg(posts)), '[]') AS post, COUNT(posts) AS no_of_posts FROM (select u.person_name as name,u.username,u.profile_image,post.post_id,post.description,post.location,post.post_type, TO_CHAR(post.post_timing,'DD/MM/YYYY HH24:MI:ss') indian_time, TO_CHAR(post.post_utc_timing,'DD/MM/YYYY HH24:MI:ss') utc_time,post.media,post.comments,post.likes total_likes,post.comments total_comments,(select count(*) from post_likes where post_id=post.post_id and like_type='post' and auth_token='"+data.auth_token+"') liked_by_you,COALESCE(hashtags,'') hashtags,COALESCE(mentions,'') mentions, (post.auth_token='"+data.auth_token+"') as is_self from posts post,users u where post.auth_token=u.auth_token and 1=1 "+condition+" order by post.post_id DESC ) posts";
 
         let hashTagData=await db.fetchRecords(query);
     
@@ -946,8 +946,8 @@ userdb.hashTagProfile=async(data)=>{
 
         hashTagData=hashTagData.msg[0];
 
-        for(let i=0;i<hashTagData.hashtag_posts.length;i++){
-            hashTagData.hashtag_posts[i].username=encrypt.decrypt(hashTagData.hashtag_posts[i].username,process.env.salt_string);
+        for(let i=0;i<hashTagData.post.length;i++){
+            hashTagData.post[i].username=encrypt.decrypt(hashTagData.post[i].username,process.env.salt_string);
         }
 
         return {status:true,msg:"Hashtag Profile fetched successfully.",response:{hashtag_profile:hashTagData}};
