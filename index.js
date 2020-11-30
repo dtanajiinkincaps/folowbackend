@@ -29,7 +29,7 @@ app.use(bodyparser.json());
 passport.use(new Strategy({
     consumerKey:process.env.twitter_consumer_key,
     consumerSecret:process.env.twitter_sceret_key,
-    callbackURL:"http://folow-backend.inkincaps.com//app/twitter/return"
+    callbackURL:"https://folow-backend.inkincaps.com/app/twitter/return"
 },function(token,tokenSceret,profile,callback){
     callback(null,profile);
 }));
